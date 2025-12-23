@@ -194,7 +194,6 @@ def main():
     parser.add_argument("--hf-val-split", default="validation")
     parser.add_argument("--hf-image-col", default="image")
     parser.add_argument("--hf-caption-col", default="caption")
-    parser.add_argument("--hf-split-col", default="split")
     parser.add_argument("--val-ratio", type=float, default=0.0)
     parser.add_argument("--split-seed", type=int, default=42)
     parser.add_argument("--caption-index", type=int, default=0)
@@ -239,18 +238,12 @@ def main():
 
         train_hf = load_dataset(args.hf_dataset, split=args.hf_split)
         val_hf = load_dataset(args.hf_dataset, split=args.hf_val_split)
-        if args.hf_split_col in train_hf.column_names:
-            train_hf = train_hf.filter(lambda x: x[args.hf_split_col] == args.hf_split)
-        if args.hf_split_col in val_hf.column_names:
-            val_hf = val_hf.filter(lambda x: x[args.hf_split_col] == args.hf_val_split)
-
         if args.val_ratio > 0 and args.hf_split == args.hf_val_split:
             split = train_hf.train_test_split(
                 test_size=args.val_ratio, seed=args.split_seed
             )
             train_hf = split["train"]
             val_hf = split["test"]
-        print(len(train_hf), len(val_hf))
         train_ds = HFDataset(
             train_hf,
             tokenizer,
@@ -327,6 +320,10 @@ def main():
     global_step = 0
     best_recall = -1.0
     last_ckpt_path = ""
+    print("train_ds:", len(train_ds))
+    print("val_ds:", len(val_ds))
+    print("train_loader:", len(train_loader))
+    print("val_loader:", len(val_loader))
 
     for epoch in range(args.epochs):
         model.train()
