@@ -215,7 +215,19 @@ def main():
     parser.add_argument("--num-workers", type=int, default=2)
     parser.add_argument("--output-dir", default="outputs")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--hf-upload-repo")
+    parser.add_argument("--hf-upload-branch", default="main")
+    parser.add_argument("--hf-upload-token", default="")
     args = parser.parse_args()
+
+    try:
+        from huggingface_hub import HfApi, login
+    except ImportError as exc:
+        raise SystemExit(
+            "Missing deps. Install with: pip install huggingface_hub"
+        ) from exc
+    
+    login(token=args.hf_upload_token)
 
     set_seed(args.seed)
     os.makedirs(args.output_dir, exist_ok=True)
@@ -350,6 +362,20 @@ def main():
 
         ckpt_path = os.path.join(args.output_dir, f"epoch_{epoch}.pt")
         torch.save({"model": model.state_dict(), "epoch": epoch}, ckpt_path)
+
+        if args.hf_upload_repo:
+            token = args.hf_upload_token or os.environ.get("HF_TOKEN")
+            if not token:
+                raise SystemExit("Set --hf-upload-token or HF_TOKEN to upload.")
+            api = HfApi(token=token)
+            api.upload_file(
+                path_or_fileobj=ckpt_path,
+                path_in_repo=os.path.basename(ckpt_path),
+                repo_id=args.hf_upload_repo,
+                repo_type="model",
+                revision=args.hf_upload_branch,
+                commit_message=f"Add checkpoint epoch {epoch}",
+            )
 
 
 if __name__ == "__main__":
