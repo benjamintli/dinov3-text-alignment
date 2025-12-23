@@ -258,6 +258,7 @@ def main():
             )
             train_hf = split["train"]
             val_hf = split["test"]
+        print(len(train_hf), len(val_hf))
         train_ds = HFDataset(
             train_hf,
             tokenizer,
