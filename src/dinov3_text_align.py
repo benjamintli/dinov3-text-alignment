@@ -12,7 +12,7 @@ class DinoV3TextAlignment(torch.nn.Module):
         self,
         txt_model="sentence-transformers/all-MiniLM-L6-v2",
         img_model="facebook/dinov3-vitb16-pretrain-lvd1689m",
-        embed_size=64,  # output dimension of the encoder
+        embed_size=512,  # output dimension of the encoder
         unfreeze_n_blocks=4,
         lr=0.0001,
         warmup_epochs=0,

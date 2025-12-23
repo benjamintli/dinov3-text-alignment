@@ -220,16 +220,8 @@ def main():
     parser.add_argument("--hf-upload-repo")
     parser.add_argument("--hf-upload-branch", default="main")
     parser.add_argument("--hf-upload-token", default="")
+    parser.add_argument("--hf-upload-every-epoch", action="store_true")
     args = parser.parse_args()
-
-    try:
-        from huggingface_hub import HfApi, login
-    except ImportError as exc:
-        raise SystemExit(
-            "Missing deps. Install with: pip install huggingface_hub"
-        ) from exc
-    
-    login(token=args.hf_upload_token)
 
     set_seed(args.seed)
     os.makedirs(args.output_dir, exist_ok=True)
@@ -334,6 +326,7 @@ def main():
     total_warmup_steps = args.warmup_epochs * len(train_loader)
     global_step = 0
     best_recall = -1.0
+    last_ckpt_path = ""
 
     for epoch in range(args.epochs):
         model.train()
@@ -372,8 +365,15 @@ def main():
 
         ckpt_path = os.path.join(args.output_dir, f"epoch_{epoch}.pt")
         torch.save({"model": model.state_dict(), "epoch": epoch}, ckpt_path)
+        last_ckpt_path = ckpt_path
 
-        if args.hf_upload_repo:
+        if args.hf_upload_repo and args.hf_upload_every_epoch:
+            try:
+                from huggingface_hub import HfApi
+            except ImportError as exc:
+                raise SystemExit(
+                    "Missing deps. Install with: pip install huggingface_hub"
+                ) from exc
             token = args.hf_upload_token or os.environ.get("HF_TOKEN")
             if not token:
                 raise SystemExit("Set --hf-upload-token or HF_TOKEN to upload.")
@@ -386,6 +386,27 @@ def main():
                 revision=args.hf_upload_branch,
                 commit_message=f"Add checkpoint epoch {epoch}",
             )
+
+    if args.hf_upload_repo and not args.hf_upload_every_epoch:
+        try:
+            from huggingface_hub import HfApi
+        except ImportError as exc:
+            raise SystemExit(
+                "Missing deps. Install with: pip install huggingface_hub"
+            ) from exc
+        token = args.hf_upload_token or os.environ.get("HF_TOKEN")
+        if not token:
+            raise SystemExit("Set --hf-upload-token or HF_TOKEN to upload.")
+        api = HfApi(token=token)
+        best_path = last_ckpt_path or os.path.join(args.output_dir, "best.pt")
+        api.upload_file(
+            path_or_fileobj=best_path,
+            path_in_repo=os.path.basename(best_path),
+            repo_id=args.hf_upload_repo,
+            repo_type="model",
+            revision=args.hf_upload_branch,
+            commit_message="Add best checkpoint",
+        )
 
 
 if __name__ == "__main__":
