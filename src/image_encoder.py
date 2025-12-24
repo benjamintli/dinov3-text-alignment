@@ -16,6 +16,17 @@ class ImageEncoder(nn.Module):
         for param in self.encoder.parameters():
             param.requires_grad = False
 
+        # unfreeze the last few blocks
+        blocks = self._get_transformer_blocks(self.encoder)
+        for block in blocks[-unfreeze_n_blocks:]:
+            for param in block.parameters():
+                param.requires_grad = True
+
+        # unfreeze the norm layer
+        norm = self._get_norm_layer(self.encoder)
+        for param in norm.parameters():
+            param.requires_grad = True
+
         hidden_size = getattr(self.encoder, "embed_dim", None)
         if hidden_size is None:
             hidden_size = getattr(self.encoder.config, "hidden_size", None)

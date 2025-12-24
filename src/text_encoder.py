@@ -16,13 +16,13 @@ class TextEncoder(nn.Module):
         for param in self.encoder.parameters():
             param.requires_grad = False
 
-        # for layer in self.encoder.encoder.layer[-unfreeze_n_blocks:]:
-        #     for param in layer.parameters():
-        #         param.requires_grad = True
+        for layer in self.encoder.encoder.layer[-unfreeze_n_blocks:]:
+            for param in layer.parameters():
+                param.requires_grad = True
 
-        # # unfreeze the pooler layer
-        # for param in self.encoder.pooler.parameters():
-        #     param.requires_grad = True
+        # unfreeze the pooler layer
+        for param in self.encoder.pooler.parameters():
+            param.requires_grad = True
 
         proj_hidden = self.encoder.config.hidden_size * 2
         self.proj = nn.Sequential(
