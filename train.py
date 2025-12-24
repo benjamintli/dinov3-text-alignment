@@ -82,6 +82,7 @@ class HFDataset(Dataset):
         image_col="image",
         caption_col="caption",
         caption_index=0,
+        caption_mode="fixed",
     ):
         self.hf_dataset = hf_dataset
         self.tokenizer = tokenizer
@@ -90,16 +91,38 @@ class HFDataset(Dataset):
         self.image_col = image_col
         self.caption_col = caption_col
         self.caption_index = caption_index
+        self.caption_mode = caption_mode
+        if self.caption_mode not in {"fixed", "random", "all"}:
+            raise ValueError(
+                "caption_mode must be one of: fixed, random, all"
+            )
+        self.num_captions = 1
+        if len(self.hf_dataset) > 0:
+            sample_caption = self.hf_dataset[0].get(self.caption_col)
+            if isinstance(sample_caption, list) and len(sample_caption) > 0:
+                self.num_captions = len(sample_caption)
 
     def __len__(self):
+        if self.caption_mode == "all":
+            return len(self.hf_dataset) * self.num_captions
         return len(self.hf_dataset)
 
     def __getitem__(self, idx):
-        row = self.hf_dataset[idx]
+        if self.caption_mode == "all":
+            base_idx = idx // self.num_captions
+            caption_slot = idx % self.num_captions
+        else:
+            base_idx = idx
+            caption_slot = self.caption_index
+
+        row = self.hf_dataset[base_idx]
         image = row[self.image_col]
         caption = row[self.caption_col]
         if isinstance(caption, list):
-            caption = caption[self.caption_index]
+            if self.caption_mode == "random":
+                caption = random.choice(caption)
+            else:
+                caption = caption[caption_slot]
 
         if isinstance(image, str):
             with Image.open(image) as img:
@@ -200,12 +223,17 @@ def main():
     parser.add_argument("--max-val-samples", type=int, default=0)
     parser.add_argument("--caption-index", type=int, default=0)
     parser.add_argument(
+        "--caption-mode",
+        default="fixed",
+        choices=["fixed", "random", "all"],
+    )
+    parser.add_argument(
         "--text-model", default="sentence-transformers/all-MiniLM-L6-v2"
     )
     parser.add_argument(
         "--img-model", default="facebook/dinov3-vitb16-pretrain-lvd1689m"
     )
-    parser.add_argument("--embed-size", type=int, default=64)
+    parser.add_argument("--embed-size", type=int, default=512)
     parser.add_argument("--unfreeze-n-blocks", type=int, default=4)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--weight-decay", type=float, default=1e-4)
@@ -258,6 +286,7 @@ def main():
             image_col=args.hf_image_col,
             caption_col=args.hf_caption_col,
             caption_index=args.caption_index,
+            caption_mode=args.caption_mode,
         )
         val_ds = HFDataset(
             val_hf,
@@ -267,6 +296,7 @@ def main():
             image_col=args.hf_image_col,
             caption_col=args.hf_caption_col,
             caption_index=args.caption_index,
+            caption_mode=args.caption_mode,
         )
     else:
         if not args.train_csv or not args.val_csv:
