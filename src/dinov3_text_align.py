@@ -38,7 +38,7 @@ class DinoV3TextAlignment(torch.nn.Module):
         self.txt_encoder = TextEncoder(
             self.embed_size, self.txt_model, unfreeze_n_blocks
         )
-        self.loss_fn = ContrastiveLoss(temperature=0.05)
+        self.loss_fn = ContrastiveLoss(temperature=0.07)
 
     def forward(self, image, captions, masks):
         """
