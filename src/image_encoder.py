@@ -32,7 +32,14 @@ class ImageEncoder(nn.Module):
             hidden_size = getattr(self.encoder.config, "hidden_size", None)
         if hidden_size is None:
             raise AttributeError("Unable to determine encoder hidden size for projection.")
-        self.fc = nn.Linear(hidden_size, output_dim)
+        proj_hidden = hidden_size * 2
+        self.proj = nn.Sequential(
+            nn.LayerNorm(hidden_size),
+            nn.Linear(hidden_size, proj_hidden),
+            nn.GELU(),
+            nn.Dropout(0.1),
+            nn.Linear(proj_hidden, output_dim),
+        )
 
     @staticmethod
     def _get_transformer_blocks(model):
@@ -83,5 +90,5 @@ class ImageEncoder(nn.Module):
                 x = output.last_hidden_state[:, 0]
             else:
                 raise AttributeError("Encoder output missing pooler or hidden states.")
-        x = self.fc(x)
+        x = self.proj(x)
         return x

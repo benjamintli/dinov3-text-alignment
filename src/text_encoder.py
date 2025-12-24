@@ -24,11 +24,18 @@ class TextEncoder(nn.Module):
         for param in self.encoder.pooler.parameters():
             param.requires_grad = True
 
-        self.fc = nn.Linear(self.encoder.config.hidden_size, output_dim)
+        proj_hidden = self.encoder.config.hidden_size * 2
+        self.proj = nn.Sequential(
+            nn.LayerNorm(self.encoder.config.hidden_size),
+            nn.Linear(self.encoder.config.hidden_size, proj_hidden),
+            nn.GELU(),
+            nn.Dropout(0.1),
+            nn.Linear(proj_hidden, output_dim),
+        )
 
     def forward(self, input_ids, attention_mask=None):
         x = self.encoder(
             input_ids=input_ids, attention_mask=attention_mask
         ).last_hidden_state[:, 0]
-        x = self.fc(x)
+        x = self.proj(x)
         return x
