@@ -6,7 +6,7 @@ import sys
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Subset
 from transformers import AutoImageProcessor, AutoTokenizer
 
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -196,6 +196,8 @@ def main():
     parser.add_argument("--hf-caption-col", default="caption")
     parser.add_argument("--val-ratio", type=float, default=0.0)
     parser.add_argument("--split-seed", type=int, default=42)
+    parser.add_argument("--max-train-samples", type=int, default=0)
+    parser.add_argument("--max-val-samples", type=int, default=0)
     parser.add_argument("--caption-index", type=int, default=0)
     parser.add_argument(
         "--text-model", default="sentence-transformers/all-MiniLM-L6-v2"
@@ -244,6 +246,10 @@ def main():
             )
             train_hf = split["train"]
             val_hf = split["test"]
+        if args.max_train_samples > 0:
+            train_hf = train_hf.select(range(min(args.max_train_samples, len(train_hf))))
+        if args.max_val_samples > 0:
+            val_hf = val_hf.select(range(min(args.max_val_samples, len(val_hf))))
         train_ds = HFDataset(
             train_hf,
             tokenizer,
@@ -283,6 +289,10 @@ def main():
             image_col=args.image_col,
             caption_col=args.caption_col,
         )
+        if args.max_train_samples > 0:
+            train_ds = Subset(train_ds, range(min(args.max_train_samples, len(train_ds))))
+        if args.max_val_samples > 0:
+            val_ds = Subset(val_ds, range(min(args.max_val_samples, len(val_ds))))
 
     train_loader = DataLoader(
         train_ds,
