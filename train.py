@@ -30,6 +30,7 @@ class ImageTextDataset(Dataset):
         max_length,
         image_col="image",
         caption_col="caption",
+        text_prefix="",
     ):
         self.items = []
         self.image_root = image_root
@@ -38,6 +39,7 @@ class ImageTextDataset(Dataset):
         self.max_length = max_length
         self.image_col = image_col
         self.caption_col = caption_col
+        self.text_prefix = text_prefix
 
         with open(csv_path, newline="") as f:
             reader = csv.DictReader(f)
@@ -51,6 +53,8 @@ class ImageTextDataset(Dataset):
 
     def __getitem__(self, idx):
         image_path, caption = self.items[idx]
+        if self.text_prefix:
+            caption = f"{self.text_prefix}{caption}"
         if self.image_root:
             image_path = os.path.join(self.image_root, image_path)
 
@@ -83,6 +87,7 @@ class HFDataset(Dataset):
         caption_col="caption",
         caption_index=0,
         caption_mode="fixed",
+        text_prefix="",
     ):
         self.hf_dataset = hf_dataset
         self.tokenizer = tokenizer
@@ -92,6 +97,7 @@ class HFDataset(Dataset):
         self.caption_col = caption_col
         self.caption_index = caption_index
         self.caption_mode = caption_mode
+        self.text_prefix = text_prefix
         if self.caption_mode not in {"fixed", "random", "all"}:
             raise ValueError(
                 "caption_mode must be one of: fixed, random, all"
@@ -123,6 +129,8 @@ class HFDataset(Dataset):
                 caption = random.choice(caption)
             else:
                 caption = caption[caption_slot]
+        if self.text_prefix:
+            caption = f"{self.text_prefix}{caption}"
 
         if isinstance(image, str):
             with Image.open(image) as img:
@@ -227,6 +235,7 @@ def main():
         default="fixed",
         choices=["fixed", "random", "all"],
     )
+    parser.add_argument("--text-prefix", default="")
     parser.add_argument(
         "--text-model", default="sentence-transformers/all-MiniLM-L6-v2"
     )
@@ -287,6 +296,7 @@ def main():
             caption_col=args.hf_caption_col,
             caption_index=args.caption_index,
             caption_mode=args.caption_mode,
+            text_prefix=args.text_prefix,
         )
         val_ds = HFDataset(
             val_hf,
@@ -297,6 +307,7 @@ def main():
             caption_col=args.hf_caption_col,
             caption_index=args.caption_index,
             caption_mode=args.caption_mode,
+            text_prefix=args.text_prefix,
         )
     else:
         if not args.train_csv or not args.val_csv:
@@ -309,6 +320,7 @@ def main():
             args.max_length,
             image_col=args.image_col,
             caption_col=args.caption_col,
+            text_prefix=args.text_prefix,
         )
         val_ds = ImageTextDataset(
             args.val_csv,
@@ -318,6 +330,7 @@ def main():
             args.max_length,
             image_col=args.image_col,
             caption_col=args.caption_col,
+            text_prefix=args.text_prefix,
         )
         if args.max_train_samples > 0:
             train_ds = Subset(train_ds, range(min(args.max_train_samples, len(train_ds))))

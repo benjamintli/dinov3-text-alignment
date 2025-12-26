@@ -34,8 +34,12 @@ class TextEncoder(nn.Module):
         )
 
     def forward(self, input_ids, attention_mask=None):
-        x = self.encoder(
-            input_ids=input_ids, attention_mask=attention_mask
-        ).last_hidden_state[:, 0]
+        output = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
+        token_embeddings = output.last_hidden_state
+        if attention_mask is None:
+            x = token_embeddings.mean(dim=1)
+        else:
+            mask = attention_mask.unsqueeze(-1).type_as(token_embeddings)
+            x = (token_embeddings * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1e-6)
         x = self.proj(x)
         return x
